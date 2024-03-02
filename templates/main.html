@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Marketplace Scraper</title>
+        <link rel="stylesheet" href="./static/styles.css">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            function createChart(x, y) {
+                console.log('X', x);
+                console.log('Y', y);
+                const ctx = document.getElementById('chart');
+                if (Chart.getChart(ctx)) {
+                    Chart.getChart(ctx).destroy();
+                }
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: x,
+                        datasets: [{
+                        label: '$ Average',
+                        data: y,
+                        borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                        y: {
+                            beginAtZero: true,
+                        }
+                        }
+                    },
+                });
+            }
+            function filterData(DATA, vehicle, location, minPrice, maxPrice, minMiles, maxMiles, minYear, maxYear) {
+                for (var d in DATA) {
+                    if (DATA.hasOwnProperty(d)) {
+                        var currData = DATA[d];
+                        const partSize = Math.ceil(currData / 4);
+                        dataParts = [currData.slice(0, partSize), 
+                        currData.slice(partSize, partSize * 2), 
+                        currData.slice(partSize * 2, partSize * 3), 
+                        currData.slice(partSize * 3)]
+                        for (var k = 0; k < dataParts.length; k++) {
+                            for (var i = 0; i < dataParts[k].length; i++) {
+                                if ((vehicle != 'n/a' && dataParts[k][i][0].toLowerCase().indexOf(vehicle.toLowerCase()) == -1) 
+                                || (location != 'n/a' && dataParts[k][i][4] !== location) 
+                                || parseInt(dataParts[k][i][2]) < minPrice || parseInt(dataParts[k][i][2]) > maxPrice 
+                                || parseInt(dataParts[k][i][3]) < minMiles || parseInt(dataParts[k][i][3]) > maxMiles 
+                                || parseInt(dataParts[k][i][1]) < minYear || parseInt(dataParts[k][i][1]) > maxYear){
+                                    dataParts[k].splice(i, 1);
+                                    i--;
+                                }
+                            }
+                        }
+                        DATA[d] = dataParts[0].concat(dataParts[1], dataParts[2], dataParts[3]);
+                    }
+                }
+                console.log('2', DATA);
+                setProgress('');
+                return DATA
+            }
+            function refreshData(vehicle, location, minPrice, maxPrice, minMiles, maxMiles, minYear, maxYear) {
+                fetch('/get_data')
+                    .then(response => response.json())
+                    .then(data => {
+                        data = filterData(data, vehicle, location, minPrice, maxPrice, minMiles, maxMiles, minYear, maxYear)
+                        var xAxis = [];
+                        var yAxis = [];
+                        
+                        // if location is not available, x-axis is locations. Else x axis is time
+                        if (location == 'n/a') {
+                            fetch('/get_loc')
+                                .then(response => response.json())
+                                .then(locs => {
+                                    var ctr = []
+                                    for (var i = 0; i < locs.length; i++) {
+                                        xAxis.push(locs[i]);
+                                        yAxis.push(0)
+                                        ctr.push(0)
+                                    }
+                                    const keys = Object.keys(data);
+                                    const lastKey = keys[keys.length - 1];
+                                    
+                                    var currData = data[lastKey];
+                                                                        
+                                    for (var i in currData) {
+                                        for (var n = 0; n < xAxis.length; n++) {
+                                            if (currData[i][4] == xAxis[n]) {
+                                                if (isNaN(parseInt(currData[i][2])) == false) {
+                                                    yAxis[n] += parseInt(currData[i][2]);
+                                                    ctr[n] += 1;
+                                                }else {
+                                                    //console.log(data[key][i][2]);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    for (var n = 0; n < locs.length; n++) {
+                                        yAxis[n] /= ctr[n];
+                                    }
+                                    createChart(xAxis, yAxis)
+                            });
+                        }else {
+                            xAxis = Object.keys(data)
+                            for (var key in data) {
+                                if (data.hasOwnProperty(key)) {
+                                    yAxis.push(0);
+                                    var ctr = 0;
+                                    for (var i = 0; i < data[key].length; i++) {
+                                        if (isNaN(parseInt(data[key][i][2])) == false) {
+                                            yAxis[yAxis.length - 1] += parseInt(data[key][i][2]);
+                                            ctr += 1;
+                                        }else {
+                                            //console.log(data[key][i][2])
+                                        }
+                                    }
+                                    yAxis[yAxis.length - 1] /= ctr
+                                }
+                            }
+                            createChart(xAxis, yAxis)
+                        }
+
+                        for (var key in data) {
+                            if (data.hasOwnProperty(key)) {
+                                var currentArray = data[key];
+                                for (var i = 0; i < currentArray.length; i++) {
+                                    //console.log(currentArray[i][0]);
+                                }
+                            }
+                        }
+                        console.log(data);
+                        updateVehicleOptions(data);
+                });
+                fetch('/get_loc')
+                    .then(response => response.json())
+                    .then(data => {
+                        updateLocationOptions(data);
+                });
+            }
+            refreshData('n/a', 'n/a', 0, 999999, 0, 999999, 0, 999999);
+        </script>
+    </head>
+    <body>
+        <div class="headercontainer">
+            <div class="headersectionside" style="padding-top: 30px; font-weight: bold; letter-spacing: 1px;">Keys: 100</div>
+            <div class="headersection" style="padding-top: 15px;">
+                <h1>
+                    Marketplace Scraper
+                </h1>
+            </div>
+            <div class="headersectionside">
+                <button>
+                    Log In
+                </button>
+            </div>
+        </div>
+        <br>
+        <div style="text-align: center;">
+            <input id='vehicleField' list="vehicles" class="bigsearch" type="text" placeholder="Search">
+            <br>
+            <datalist id="vehicles"></datalist>
+            <input id='locationField' list="locations" class="smallsearch" placeholder="Location">
+            <datalist id="locations"></datalist>
+            <input id='minPriceField' type="text" class="smallsearch" placeholder="Price (min)">
+            <input id='minMilesField' type="text" class="smallsearch" placeholder="Miles (min)">
+            <input id='minYearField' type="text" class="smallsearch" placeholder="Year (min)">
+            <br>
+            <input list="options" class="smallsearch" placeholder="Location" style="opacity: 0;">
+            <input id='maxPriceField' type="text" class="smallsearch" placeholder="Price (max)">
+            <input id='maxMilesField' type="text" class="smallsearch" placeholder="Miles (max)">
+            <input id='maxYearField' type="text" class="smallsearch" placeholder="Year (max)">
+            <p id='progressText' style="font-size: 10px;"></p>
+            <script>
+                var vehicleChoice = 'n/a';
+                var locationChoice = 'n/a'
+                var minPriceChoice = 0;
+                var maxPriceChoice = 999999;
+                var minMilesChoice = 0;
+                var maxMilesChoice = 999999;
+                var minYearChoice = 0;
+                var maxYearChoice = 999999;
+                const vehicleField = document.getElementById('vehicleField');
+                vehicleField.addEventListener('keydown', function() {
+                    if (event.keyCode === 13 || event.key === 'Enter') {
+                        vehicleChoice = vehicleField.value.trim() === '' ? 'n/a' : vehicleField.value;
+                        setProgress('Loading...')
+                        refreshData(vehicleChoice, locationChoice, minPriceChoice, maxPriceChoice, minMilesChoice, maxMilesChoice, minYearChoice, maxYearChoice)
+                    }
+                })
+                const locationField = document.getElementById('locationField');
+                locationField.addEventListener('input', function() {
+                    locationChoice = locationField.value.trim() === '' ? 'n/a' : locationField.value;
+                })
+                const minPriceField = document.getElementById('minPriceField');
+                minPriceField.addEventListener('input', function() {
+                    minPriceChoice = minPriceField.value.trim() === '' ? 0 : parseInt(minPriceField.value);
+                })
+                const maxPriceField = document.getElementById('maxPriceField');
+                maxPriceField.addEventListener('input', function() {
+                    maxPriceChoice = maxPriceField.value.trim() === '' ? 999999999 : parseInt(maxPriceField.value);
+                })
+                const minMilesField = document.getElementById('minMilesField');
+                minMilesField.addEventListener('input', function() {
+                    minMilesChoice = minMilesField.value.trim() === '' ? 0 : parseInt(minMilesField.value);
+                })
+                const maxMilesField = document.getElementById('maxMilesField');
+                maxMilesField.addEventListener('input', function() {
+                    maxMilesChoice = maxMilesField.value.trim() === '' ? 999999999 : parseInt(maxMilesField.value);
+                })
+                const minYearField = document.getElementById('minYearField');
+                minYearField.addEventListener('input', function() {
+                    minYearChoice = minYearField.value.trim() === '' ? 0 : parseInt(minYearField.value);
+                })
+                const maxYearField = document.getElementById('maxYearField');
+                maxYearField.addEventListener('input', function() {
+                    maxYearChoice = maxYearField.value.trim() === '' ? 999999999 : parseInt(maxYearField.value);
+                })
+
+                function updateVehicleOptions(data) {
+
+                    const keys = Object.keys(data);
+                    const lastKey = keys[keys.length - 1];
+
+                    var currentArray = data[lastKey];
+
+                    const datalist = document.getElementById('vehicles');
+                    while (datalist.firstChild) {
+                        datalist.removeChild(datalist.firstChild);
+                    }
+                    for (var i = 0; i < currentArray.length; i++) {
+                        var option = document.createElement('option');
+                        option.value = currentArray[i][0]
+                        datalist.append(option)
+                    }
+                }
+                function updateLocationOptions(data) {
+                    const datalist = document.getElementById('locations');
+                    while (datalist.firstChild) {
+                        datalist.removeChild(datalist.firstChild);
+                    }
+                    for (var i = 0; i < data.length; i++) {
+                        var option = document.createElement('option');
+                        option.value = data[i]
+                        datalist.append(option)
+                    }
+                }
+                function setProgress(str) {document.getElementById('progressText').textContent = str;}
+            </script>         
+        <div style="height: 550px; display: flex; align-items: center; justify-content: center;">
+            <br>
+            <canvas id="chart"></canvas>
+        </div>
+    </body>
+</html>
