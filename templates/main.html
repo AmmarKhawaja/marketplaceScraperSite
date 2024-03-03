@@ -32,60 +32,53 @@
                     },
                 });
             }
+            function processData(data) {
+                var xAxis = [];
+                var yAxis = [];
+                
+                // if location is not available, x-axis is locations. Else x axis is time
+                //MOVE SOME CODE TO BACKEND
+                if (data['location'] == 'n/a') {
+                    fetch('/get_loc')
+                        .then(response => response.json())
+                        .then(locs => {
+                            for (var i = 0; i < locs.length; i++) {
+                                xAxis.push(locs[i]);
+                                yAxis.push(0)
+                            xAxis = Object.keys(data['avg_price_loc']);
+                            yAxis = []
+                            for (var i = 0; i < xAxis.length; i++) {
+                                yAxis.push(data['avg_price_loc'][xAxis[i]])
+                            }
+                                //console.log('this data', data['avg_price_loc'])
+                            }
+                            createChart(xAxis, yAxis)
+                    });
+                }else {
+                    xAxis = Object.keys(data)
+                    for (var key in data) {
+                        if (data.hasOwnProperty(key)) {
+                            yAxis.push(0);
+                            var ctr = 0;
+                            for (var i = 0; i < data[key].length; i++) {
+                                if (isNaN(parseInt(data[key][i][2])) == false) {
+                                    yAxis[yAxis.length - 1] += parseInt(data[key][i][2]);
+                                    ctr += 1;
+                                }else {
+                                    //console.log(data[key][i][2])
+                                }
+                            }
+                            yAxis[yAxis.length - 1] /= ctr
+                        }
+                    }
+                    createChart(xAxis, yAxis)
+                }
+            }
             function refreshData() {
                 fetch('/get_data')
                     .then(response => response.json())
                     .then(data => {
-                        var xAxis = [];
-                        var yAxis = [];
-                        
-                        // if location is not available, x-axis is locations. Else x axis is time
-                        //MOVE SOME CODE TO BACKEND
-                        if (data['location'] == 'n/a') {
-                            fetch('/get_loc')
-                                .then(response => response.json())
-                                .then(locs => {
-                                    for (var i = 0; i < locs.length; i++) {
-                                        xAxis.push(locs[i]);
-                                        yAxis.push(0)
-                                    xAxis = Object.keys(data['avg_price_loc']);
-                                    yAxis = []
-                                    for (var i = 0; i < xAxis.length; i++) {
-                                        yAxis.push(data['avg_price_loc'][xAxis[i]])
-                                    }
-                                        //console.log('this data', data['avg_price_loc'])
-                                    }
-                                    createChart(xAxis, yAxis)
-                            });
-                        }else {
-                            xAxis = Object.keys(data)
-                            for (var key in data) {
-                                if (data.hasOwnProperty(key)) {
-                                    yAxis.push(0);
-                                    var ctr = 0;
-                                    for (var i = 0; i < data[key].length; i++) {
-                                        if (isNaN(parseInt(data[key][i][2])) == false) {
-                                            yAxis[yAxis.length - 1] += parseInt(data[key][i][2]);
-                                            ctr += 1;
-                                        }else {
-                                            //console.log(data[key][i][2])
-                                        }
-                                    }
-                                    yAxis[yAxis.length - 1] /= ctr
-                                }
-                            }
-                            createChart(xAxis, yAxis)
-                        }
-
-                        for (var key in data) {
-                            if (data.hasOwnProperty(key)) {
-                                var currentArray = data[key];
-                                for (var i = 0; i < currentArray.length; i++) {
-                                    //console.log(currentArray[i][0]);
-                                }
-                            }
-                        }
-                        console.log(data['vehicles'])
+                        processData(data);
                         updateVehicleOptions(data);
                 });
                 fetch('/get_loc')
@@ -151,44 +144,8 @@
                                 return response.json();
                             })
                             .then(data => {
-                                var xAxis = [];
-                                var yAxis = [];
-                                if (data['location'] == 'n/a') {
-                                    fetch('/get_loc')
-                                        .then(response => response.json())
-                                        .then(locs => {
-                                            for (var i = 0; i < locs.length; i++) {
-                                                xAxis.push(locs[i]);
-                                                yAxis.push(0)
-                                            }
-                                            xAxis = Object.keys(data['avg_price_loc']);
-                                            yAxis = []
-                                            for (var i = 0; i < xAxis.length; i++) {
-                                                yAxis.push(data['avg_price_loc'][xAxis[i]])
-                                            }
-                                            createChart(xAxis, yAxis)
-                                    });
-                                }else {
-                                    xAxis = Object.keys(data)
-                                    for (var key in data) {
-                                        if (data.hasOwnProperty(key)) {
-                                            yAxis.push(0);
-                                            var ctr = 0;
-                                            for (var i = 0; i < data[key].length; i++) {
-                                                if (isNaN(parseInt(data[key][i][2])) == false) {
-                                                    yAxis[yAxis.length - 1] += parseInt(data[key][i][2]);
-                                                    ctr += 1;
-                                                }else {
-                                                    //console.log(data[key][i][2])
-                                                }
-                                            }
-                                            yAxis[yAxis.length - 1] /= ctr
-                                        }
-                                    }
-                                    createChart(xAxis, yAxis)
-                                }
+                                processData(data);
                                 updateVehicleOptions(data);
-                                setProgress('')
                         });
                         fetch('/get_loc')
                             .then(response => response.json())
