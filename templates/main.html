@@ -5,10 +5,8 @@
         <link rel="stylesheet" href="./static/styles.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script>
-            function createChart(x, y) {
+            function createChart(x, y1, y2) {
                 // Add linear mean regression line
-                console.log('X', x);
-                console.log('Y', y);
                 const ctx = document.getElementById('chart');
                 if (Chart.getChart(ctx)) {
                     Chart.getChart(ctx).destroy();
@@ -18,10 +16,16 @@
                     data: {
                         labels: x,
                         datasets: [{
-                        label: '$ Average',
-                        data: y,
-                        borderWidth: 1
-                        }]
+                            label: '$ Average',
+                            data: y1,
+                            borderWidth: 2
+                        },
+                        {
+                            label: '# Listings',
+                            data: y2,
+                            borderWidth: 0.5
+                        }
+                    ]
                     },
                     options: {
                         scales: {
@@ -33,26 +37,21 @@
                 });
             }
             function processData(data) {
-                var xAxis = [];
-                var yAxis = [];
-                
                 // if location is not available, x-axis is locations. Else x axis is time
-                //MOVE SOME CODE TO BACKEND
                 if (data['location'] == 'n/a') {
                     fetch('/get_loc')
                         .then(response => response.json())
                         .then(locs => {
-                            for (var i = 0; i < locs.length; i++) {
-                                xAxis.push(locs[i]);
-                                yAxis.push(0)
                             xAxis = Object.keys(data['avg_price_loc']);
-                            yAxis = []
+                            yAxis1 = []
+                            yAxis2 = []
                             for (var i = 0; i < xAxis.length; i++) {
-                                yAxis.push(data['avg_price_loc'][xAxis[i]])
+                                yAxis1.push(data['avg_price_loc'][xAxis[i]])
                             }
-                                //console.log('this data', data['avg_price_loc'])
+                            for (var i = 0; i < xAxis.length; i++) {
+                                yAxis2.push(data['num_listings_loc'][xAxis[i]])
                             }
-                            createChart(xAxis, yAxis)
+                            createChart(xAxis, yAxis1, yAxis2)
                     });
                 }else {
                     xAxis = Object.keys(data)
@@ -78,13 +77,18 @@
                 fetch('/get_data')
                     .then(response => response.json())
                     .then(data => {
-                        processData(data);
-                        updateVehicleOptions(data);
+                        if (data['keys'] != '0') {
+                            processData(data);
+                            updateVehicleOptions(data['vehicles']);
+                        }
+                        updateKeys(data['keys'])
                 });
                 fetch('/get_loc')
                     .then(response => response.json())
                     .then(data => {
-                        updateLocationOptions(data);
+                        if (data['keys'] != '0') {
+                            updateLocationOptions(data);
+                        }
                 });
             }
             refreshData();
@@ -92,7 +96,7 @@
     </head>
     <body>
         <div class="headercontainer">
-            <div class="headersectionside" style="padding-top: 30px; font-weight: bold; letter-spacing: 1px;">Keys: 100</div>
+            <div name='keys' class="headersectionside" style="padding-top: 30px; font-weight: bold; letter-spacing: 1px;">Keys: ...</div>
             <div class="headersection" style="padding-top: 15px;">
                 <h1>
                     Marketplace Scraper
@@ -140,32 +144,34 @@
                                 if (!response.ok) {
                                     throw new Error('Response Error');
                                 }
-                                setProgress('Loading...')
                                 return response.json();
                             })
                             .then(data => {
-                                processData(data);
-                                updateVehicleOptions(data);
+                                if (data['keys'] != '0') {
+                                    processData(data);
+                                    updateVehicleOptions(data['vehicles']);
+                                }
+                                updateKeys(data['keys'])
                         });
                         fetch('/get_loc')
                             .then(response => response.json())
                             .then(data => {
-                                updateLocationOptions(data);
-                                    })
-                        
+                                if (data['keys'] != '0') {
+                                    updateLocationOptions(data);
+                                }
+                            })
                     }
                 })
                 function updateVehicleOptions(data) {
-                    var currentArray = data['vehicles'];
 
                     const datalist = document.getElementById('vehicles');
                     // remove duplicates
                     while (datalist.firstChild) {
                         datalist.removeChild(datalist.firstChild);
                     }
-                    for (var i = 0; i < currentArray.length; i++) {
+                    for (var i = 0; i < data.length; i++) {
                         var option = document.createElement('option');
-                        option.value = currentArray[i]
+                        option.value = data[i]
                         datalist.append(option)
                     }
                 }
@@ -178,6 +184,14 @@
                         var option = document.createElement('option');
                         option.value = data[i]
                         datalist.append(option)
+                    }
+                }
+                function updateKeys(data) {
+                    document.querySelector('[name="keys"]').textContent = 'Keys: ' + data;
+                    if (data == '0') {
+                        setProgress('No More Keys')
+                    }else {
+                        setProgress('')
                     }
                 }
                 function setProgress(str) {document.getElementById('progressText').textContent = str;}

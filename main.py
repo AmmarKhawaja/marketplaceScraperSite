@@ -1,18 +1,25 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, session
 import csv
 import statistics
 import os
 import re
 
 app = Flask(__name__)
+app.secret_key = '73902611249295568032813045560628'
+
 PYTHONANYWHERE = False
 file_prefix = ['../', '../'][PYTHONANYWHERE]
 @app.route('/')
 def home():
+    if session['KEYS'] != 0 and not session.get('KEYS'):
+        session['KEYS'] = 10
     return render_template('main.html')    
 
-@app.route('/get_data', methods=["POST", "GET"])
+@app.route('/get_data', methods=['POST', 'GET'])
 def get_data():
+    if session['KEYS'] <= 0:
+        return jsonify({'keys': session['KEYS']})
+    session['KEYS'] = session['KEYS'] - 1
     if request.form.get('vehicle', 'n/a') != '':
         vehicle = request.form.get('vehicle', 'n/a')
     else:
@@ -28,13 +35,12 @@ def get_data():
         else:
             names[(list(names.keys()))[i]] = list(names.values())[i]
     
-    print(vehicle, location, names)
     file_name = file_prefix + 'marketplaceScraper/data'
     files = os.listdir(file_name)
     files_list = sorted([file for file in files if len(file) == 14])
     list_names = []
     data = {}
-    stats = {'avg_price_time': {}, 'avg_price_loc': {}, 'num_listings_time': {}, 'num_listings_loc': {}, 'location': location, 'vehicles': []}
+    stats = {'avg_price_time': {}, 'avg_price_loc': {}, 'num_listings_time': {}, 'num_listings_loc': {}, 'location': location, 'vehicles': [], 'keys': session['KEYS']}
     add_location = ''
     for f in files_list:
         with open(file_name + '/' + f) as csv_file:
@@ -53,7 +59,7 @@ def get_data():
                             and (int(row[3]) >= names['minMiles'] and int(row[3]) <= names['maxMiles'])
                             and (int(row[1]) >= names['minYear'] and int(row[1]) <= names['maxYear'])):
                             data[f[:7]].append(row)
-                            stats['vehicles'].append(row[0])
+                        stats['vehicles'].append(row[0])
 
         if [int(d[2]) for d in data[f[:7]] if d[2].isdigit()]:
             stats['avg_price_time'][f[:7]] = statistics.mean([int(d[2]) for d in data[f[:7]] if d[2].isdigit()])

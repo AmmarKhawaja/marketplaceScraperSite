@@ -31,7 +31,7 @@ h1 {
 .bigsearch {
     border-radius: 20px;
     border-width: 2px;
-    border-color: #316FF6;
+    border-color: black;
     border-style: solid;
     padding: 1px;
     padding-left: 30px;
@@ -39,7 +39,6 @@ h1 {
     line-height: 40px;
     width: 40%;
     text-align: center;
-
     font-size: 20px;
     font-weight: 900;
 }
